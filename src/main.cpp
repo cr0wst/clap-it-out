@@ -1,175 +1,211 @@
-// Old: Moved to main.cpp
 #include <Arduino.h>
 #include <Keyboard.h>
-#include "Bounce.h"
+#include <Bounce.h>
+#include <Fsm.h>
 
-// Pins
-const int BUTTON_PIN = 0;
-const int GREEN_LED_PIN = 5;
-const int YELLOW_LED_1_PIN = 4;
-const int YELLOW_LED_2_PIN = 3;
-const int YELLOW_LED_3_PIN = 2;
-const int RED_LED_PIN = 1;
-const int BUZZER_PIN = 23;
+/**
+ * These are the pins that each component is connected to.
+ */
+#define BUTTON_PIN 0
+#define GREEN_LED_PIN 5
+#define YELLOW_LED_1_PIN 4
+#define YELLOW_LED_2_PIN 3
+#define YELLOW_LED_3_PIN 2
+#define RED_LED_PIN 1
+#define BUZZER_PIN 23
 
-const int DEBOUNCE_MS = 10;
+ /**
+  * The debounce interval in millis.
+  */
+#define DEBOUNCE_MS 10
 
-// 500ms interval = 1s between each count with 500ms of buzzer
-const int INTERVAL_MS = 500;
+  /**
+   * The interval between each State transition.
+   */
+#define INTERVAL_MS 500
 
-bool isCountingDown = false;
-int currentCount = 0;
-unsigned long prevMillis = 0;
+   /**
+    * The tone to play for 3 - 2 - 1
+    */
+#define TONE_FREQ 97.999
+
+    /**
+     * The tone to play for clap
+     */
+#define HIGH_TONE_FREQ 196
+
+     /**
+      * States
+      */
+enum {
+    READY_TO_START_OFF,
+    READY_TO_START_ON,
+    COUNTDOWN_3_BEEP_ON,
+    COUNTDOWN_3_BEEP_OFF,
+    COUNTDOWN_2_BEEP_ON,
+    COUNTDOWN_2_BEEP_OFF,
+    COUNTDOWN_1_BEEP_ON,
+    COUNTDOWN_1_BEEP_OFF,
+    CLAP_BEEP_ON,
+    CLAP_BEEP_OFF
+};
+
+void tick();
+
+int currentState = READY_TO_START_OFF;
+int previousMillis = 0;
 
 Bounce pushButton = Bounce(BUTTON_PIN, DEBOUNCE_MS);
 
-// various functions for setting the LED states
-void allOff()
+/**
+ * Handle clicking the button.
+ *
+ * When in the READY_TO_START state the button starts the countdown.
+ * In other states it resets back to READY_TO_START.
+ *
+ */
+void handleButton()
 {
-  digitalWrite(GREEN_LED_PIN, LOW);
-  digitalWrite(YELLOW_LED_1_PIN, LOW);
-  digitalWrite(YELLOW_LED_2_PIN, LOW);
-  digitalWrite(YELLOW_LED_3_PIN, LOW);
-  digitalWrite(RED_LED_PIN, LOW);
-}
-void initialState()
-{
-  digitalWrite(GREEN_LED_PIN, HIGH);
-  digitalWrite(YELLOW_LED_1_PIN, LOW);
-  digitalWrite(YELLOW_LED_2_PIN, LOW);
-  digitalWrite(YELLOW_LED_3_PIN, LOW);
-  digitalWrite(RED_LED_PIN, LOW);
-}
-
-void finalState()
-{
-  digitalWrite(GREEN_LED_PIN, HIGH);
-  digitalWrite(YELLOW_LED_1_PIN, HIGH);
-  digitalWrite(YELLOW_LED_2_PIN, HIGH);
-  digitalWrite(YELLOW_LED_3_PIN, HIGH);
-  digitalWrite(RED_LED_PIN, HIGH);
-}
-
-void sendQuit()
-{
-  Keyboard.press(MODIFIERKEY_GUI);
-  delay(100);
-  Keyboard.press(KEY_W);
-  delay(100);
-  Keyboard.release(MODIFIERKEY_GUI);
-  Keyboard.release(KEY_W);
-  delay(100);
-  Keyboard.press(KEY_ENTER);
-  Keyboard.release(KEY_ENTER);
-}
-
-void resetCountdown()
-{
-  isCountingDown = false;
-  currentCount = 0;
-  prevMillis = 0;
-  noTone(BUZZER_PIN);
-  initialState();
-}
-
-void setup()
-{
-  Serial.begin(38400);
-
-  // Button
-  pinMode(BUTTON_PIN, INPUT_PULLUP);
-
-  // LEDs
-  pinMode(GREEN_LED_PIN, OUTPUT);
-  pinMode(YELLOW_LED_1_PIN, OUTPUT);
-  pinMode(YELLOW_LED_2_PIN, OUTPUT);
-  pinMode(YELLOW_LED_3_PIN, OUTPUT);
-  pinMode(RED_LED_PIN, OUTPUT);
-}
-
-void loop()
-{
-
-  if (pushButton.update() && pushButton.fallingEdge())
-  {
-    if (isCountingDown)
-    {
-      Serial.println("Aborting Countdown. Resetting.");
-      resetCountdown();
+    if (pushButton.update() && pushButton.fallingEdge()) {
+        switch (currentState) {
+        case READY_TO_START_OFF:
+            currentState = READY_TO_START_ON;
+            break;
+        default:
+            currentState = READY_TO_START_OFF;
+            break;
+        }
     }
-    else
-    {
-      isCountingDown = true;
-      initialState();
-    }
-  }
+}
 
-  // Handle Countdown Update
-  if (isCountingDown)
-  {
-    unsigned long currentMillis = millis();
-    if (currentMillis - prevMillis > INTERVAL_MS)
-    {
-      Serial.println("Counting Down");
-      switch (currentCount)
-      {
-      case 0:
-        initialState();
+void handleState()
+{
+    switch (currentState) {
+    case READY_TO_START_OFF:
+        digitalWrite(GREEN_LED_PIN, LOW);
+        digitalWrite(YELLOW_LED_1_PIN, LOW);
+        digitalWrite(YELLOW_LED_2_PIN, LOW);
+        digitalWrite(YELLOW_LED_3_PIN, LOW);
+        digitalWrite(RED_LED_PIN, LOW);
+
+        noTone(BUZZER_PIN);
         break;
-      case 2: // 3
+    case READY_TO_START_ON:
+        digitalWrite(GREEN_LED_PIN, HIGH);
+        digitalWrite(YELLOW_LED_1_PIN, LOW);
+        digitalWrite(YELLOW_LED_2_PIN, LOW);
+        digitalWrite(YELLOW_LED_3_PIN, LOW);
+        digitalWrite(RED_LED_PIN, LOW);
+
+        noTone(BUZZER_PIN);
+        currentState++;
+        break;
+    case COUNTDOWN_3_BEEP_ON:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, HIGH);
         digitalWrite(YELLOW_LED_2_PIN, HIGH);
         digitalWrite(YELLOW_LED_3_PIN, HIGH);
         digitalWrite(RED_LED_PIN, LOW);
-        tone(BUZZER_PIN, 97.999);
+
+        tone(BUZZER_PIN, TONE_FREQ);
+        currentState++;
         break;
-      case 3:
+    case COUNTDOWN_3_BEEP_OFF:
+        digitalWrite(GREEN_LED_PIN, HIGH);
+        digitalWrite(YELLOW_LED_1_PIN, HIGH);
+        digitalWrite(YELLOW_LED_2_PIN, HIGH);
+        digitalWrite(YELLOW_LED_3_PIN, HIGH);
+        digitalWrite(RED_LED_PIN, LOW);
+
         noTone(BUZZER_PIN);
+        currentState++;
         break;
-      case 4: // 2
+    case COUNTDOWN_2_BEEP_ON:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, LOW);
         digitalWrite(YELLOW_LED_2_PIN, HIGH);
         digitalWrite(YELLOW_LED_3_PIN, HIGH);
         digitalWrite(RED_LED_PIN, LOW);
-        tone(BUZZER_PIN, 97.999);
+
+        tone(BUZZER_PIN, TONE_FREQ);
+        currentState++;
         break;
-      case 5:
+    case COUNTDOWN_2_BEEP_OFF:
+        digitalWrite(GREEN_LED_PIN, HIGH);
+        digitalWrite(YELLOW_LED_1_PIN, LOW);
+        digitalWrite(YELLOW_LED_2_PIN, HIGH);
+        digitalWrite(YELLOW_LED_3_PIN, HIGH);
+        digitalWrite(RED_LED_PIN, LOW);
+
         noTone(BUZZER_PIN);
+        currentState++;
         break;
-      case 6: // 1
+    case COUNTDOWN_1_BEEP_ON:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, LOW);
         digitalWrite(YELLOW_LED_2_PIN, LOW);
         digitalWrite(YELLOW_LED_3_PIN, HIGH);
         digitalWrite(RED_LED_PIN, LOW);
-        tone(BUZZER_PIN, 97.999);
+
+        tone(BUZZER_PIN, TONE_FREQ);
+        currentState++;
         break;
-      case 7:
+    case COUNTDOWN_1_BEEP_OFF:
+        digitalWrite(GREEN_LED_PIN, HIGH);
+        digitalWrite(YELLOW_LED_1_PIN, LOW);
+        digitalWrite(YELLOW_LED_2_PIN, LOW);
+        digitalWrite(YELLOW_LED_3_PIN, HIGH);
+        digitalWrite(RED_LED_PIN, LOW);
+
         noTone(BUZZER_PIN);
+        currentState++;
         break;
-      case 8: // Clap
+    case CLAP_BEEP_ON:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, LOW);
         digitalWrite(YELLOW_LED_2_PIN, LOW);
         digitalWrite(YELLOW_LED_3_PIN, LOW);
         digitalWrite(RED_LED_PIN, HIGH);
-        tone(BUZZER_PIN, 196);
-        sendQuit();
-        break;
-      case 9:
-        noTone(BUZZER_PIN);
-        resetCountdown();
-        break;
-      }
 
-      currentCount++;
-      prevMillis = currentMillis;
+        tone(BUZZER_PIN, HIGH_TONE_FREQ);
+        currentState = READY_TO_START_OFF;
+        break;
+    case CLAP_BEEP_OFF:
+        digitalWrite(GREEN_LED_PIN, HIGH);
+        digitalWrite(YELLOW_LED_1_PIN, LOW);
+        digitalWrite(YELLOW_LED_2_PIN, LOW);
+        digitalWrite(YELLOW_LED_3_PIN, LOW);
+        digitalWrite(RED_LED_PIN, HIGH);
+
+        currentState = READY_TO_START_OFF;
+        noTone(BUZZER_PIN);
+        break;
     }
-  }
-  else
-  {
-    allOff();
-  }
+}
+
+void setup()
+{
+    Serial.begin(38400);
+
+    // Button
+    pinMode(BUTTON_PIN, INPUT_PULLUP);
+
+    // LEDs
+    pinMode(GREEN_LED_PIN, OUTPUT);
+    pinMode(YELLOW_LED_1_PIN, OUTPUT);
+    pinMode(YELLOW_LED_2_PIN, OUTPUT);
+    pinMode(YELLOW_LED_3_PIN, OUTPUT);
+    pinMode(RED_LED_PIN, OUTPUT);
+}
+
+void loop()
+{
+    int currentMillis = millis();
+
+    handleButton();
+
+    if (currentMillis - previousMillis > INTERVAL_MS) {
+        handleState();
+        previousMillis = currentMillis;
+    }
 }
