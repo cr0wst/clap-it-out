@@ -22,7 +22,7 @@
   /**
    * The interval between each State transition.
    */
-#define INTERVAL_MS 500
+#define INTERVAL_MS 1000
 
    /**
     * The tone to play for 3 - 2 - 1
@@ -40,14 +40,10 @@
 enum {
     READY_TO_START_OFF,
     READY_TO_START_ON,
-    COUNTDOWN_3_BEEP_ON,
-    COUNTDOWN_3_BEEP_OFF,
-    COUNTDOWN_2_BEEP_ON,
-    COUNTDOWN_2_BEEP_OFF,
-    COUNTDOWN_1_BEEP_ON,
-    COUNTDOWN_1_BEEP_OFF,
-    CLAP_BEEP_ON,
-    CLAP_BEEP_OFF
+    COUNTDOWN_3,
+    COUNTDOWN_2,
+    COUNTDOWN_1,
+    CLAP,
 };
 
 void tick();
@@ -78,6 +74,21 @@ void handleButton()
     }
 }
 
+/**
+ * Sends CMD + W and ENTER to close the Zoom meeting.
+ */
+void sendQuit() {
+    Keyboard.press(MODIFIERKEY_GUI);
+    delay(100);
+    Keyboard.press(KEY_W);
+    delay(100);
+    Keyboard.release(MODIFIERKEY_GUI);
+    Keyboard.release(KEY_W);
+    delay(100);
+    Keyboard.press(KEY_ENTER);
+    Keyboard.release(KEY_ENTER);
+}
+
 void handleState()
 {
     switch (currentState) {
@@ -100,85 +111,46 @@ void handleState()
         noTone(BUZZER_PIN);
         currentState++;
         break;
-    case COUNTDOWN_3_BEEP_ON:
+    case COUNTDOWN_3:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, HIGH);
         digitalWrite(YELLOW_LED_2_PIN, HIGH);
         digitalWrite(YELLOW_LED_3_PIN, HIGH);
         digitalWrite(RED_LED_PIN, LOW);
 
-        tone(BUZZER_PIN, TONE_FREQ);
+        tone(BUZZER_PIN, TONE_FREQ, INTERVAL_MS / 2.0);
         currentState++;
         break;
-    case COUNTDOWN_3_BEEP_OFF:
-        digitalWrite(GREEN_LED_PIN, HIGH);
-        digitalWrite(YELLOW_LED_1_PIN, HIGH);
-        digitalWrite(YELLOW_LED_2_PIN, HIGH);
-        digitalWrite(YELLOW_LED_3_PIN, HIGH);
-        digitalWrite(RED_LED_PIN, LOW);
-
-        noTone(BUZZER_PIN);
-        currentState++;
-        break;
-    case COUNTDOWN_2_BEEP_ON:
+    case COUNTDOWN_2:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, LOW);
         digitalWrite(YELLOW_LED_2_PIN, HIGH);
         digitalWrite(YELLOW_LED_3_PIN, HIGH);
         digitalWrite(RED_LED_PIN, LOW);
 
-        tone(BUZZER_PIN, TONE_FREQ);
+        tone(BUZZER_PIN, TONE_FREQ, INTERVAL_MS / 2.0);
         currentState++;
         break;
-    case COUNTDOWN_2_BEEP_OFF:
-        digitalWrite(GREEN_LED_PIN, HIGH);
-        digitalWrite(YELLOW_LED_1_PIN, LOW);
-        digitalWrite(YELLOW_LED_2_PIN, HIGH);
-        digitalWrite(YELLOW_LED_3_PIN, HIGH);
-        digitalWrite(RED_LED_PIN, LOW);
-
-        noTone(BUZZER_PIN);
-        currentState++;
-        break;
-    case COUNTDOWN_1_BEEP_ON:
+    case COUNTDOWN_1:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, LOW);
         digitalWrite(YELLOW_LED_2_PIN, LOW);
         digitalWrite(YELLOW_LED_3_PIN, HIGH);
         digitalWrite(RED_LED_PIN, LOW);
 
-        tone(BUZZER_PIN, TONE_FREQ);
+        tone(BUZZER_PIN, TONE_FREQ, INTERVAL_MS / 2.0);
         currentState++;
         break;
-    case COUNTDOWN_1_BEEP_OFF:
-        digitalWrite(GREEN_LED_PIN, HIGH);
-        digitalWrite(YELLOW_LED_1_PIN, LOW);
-        digitalWrite(YELLOW_LED_2_PIN, LOW);
-        digitalWrite(YELLOW_LED_3_PIN, HIGH);
-        digitalWrite(RED_LED_PIN, LOW);
-
-        noTone(BUZZER_PIN);
-        currentState++;
-        break;
-    case CLAP_BEEP_ON:
+    case CLAP:
         digitalWrite(GREEN_LED_PIN, HIGH);
         digitalWrite(YELLOW_LED_1_PIN, LOW);
         digitalWrite(YELLOW_LED_2_PIN, LOW);
         digitalWrite(YELLOW_LED_3_PIN, LOW);
         digitalWrite(RED_LED_PIN, HIGH);
 
-        tone(BUZZER_PIN, HIGH_TONE_FREQ);
+        tone(BUZZER_PIN, HIGH_TONE_FREQ, INTERVAL_MS / 2.0);
+        sendQuit();
         currentState = READY_TO_START_OFF;
-        break;
-    case CLAP_BEEP_OFF:
-        digitalWrite(GREEN_LED_PIN, HIGH);
-        digitalWrite(YELLOW_LED_1_PIN, LOW);
-        digitalWrite(YELLOW_LED_2_PIN, LOW);
-        digitalWrite(YELLOW_LED_3_PIN, LOW);
-        digitalWrite(RED_LED_PIN, HIGH);
-
-        currentState = READY_TO_START_OFF;
-        noTone(BUZZER_PIN);
         break;
     }
 }
