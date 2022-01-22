@@ -46,8 +46,6 @@ enum {
     CLAP,
 };
 
-void tick();
-
 int currentState = READY_TO_START_OFF;
 int previousMillis = 0;
 
