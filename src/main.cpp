@@ -3,9 +3,7 @@
 #include <Bounce.h>
 #include <Fsm.h>
 
-/**
- * These are the pins that each component is connected to.
- */
+// These are the pins that each component is connected to.
 #define BUTTON_PIN 0
 #define GREEN_LED_PIN 5
 #define YELLOW_LED_1_PIN 4
@@ -14,29 +12,19 @@
 #define RED_LED_PIN 1
 #define BUZZER_PIN 23
 
- /**
-  * The debounce interval in millis.
-  */
+// The debounce interval in millis
 #define DEBOUNCE_MS 10
 
-  /**
-   * The interval between each State transition.
-   */
+// The interval between each state transition.
 #define INTERVAL_MS 1000
 
-   /**
-    * The tone to play for 3 - 2 - 1
-    */
+// The tone that plays during 3, 2, 1
 #define TONE_FREQ 97.999
 
-    /**
-     * The tone to play for clap
-     */
+// The tone that plays during the Clap
 #define HIGH_TONE_FREQ 196
 
-     /**
-      * States
-      */
+// The states (ordered).
 enum {
     READY_TO_START_OFF,
     READY_TO_START_ON,
@@ -46,9 +34,13 @@ enum {
     CLAP,
 };
 
+// The current state.
 int currentState = READY_TO_START_OFF;
+
+// Keep track of the time so that we can transition states on a fixed interval.
 int previousMillis = 0;
 
+// A reference to the button with debouncing.
 Bounce pushButton = Bounce(BUTTON_PIN, DEBOUNCE_MS);
 
 /**
@@ -87,6 +79,9 @@ void sendQuit() {
     Keyboard.release(KEY_ENTER);
 }
 
+/**
+ * Set the lights and update the current state depending on what the current state is.
+ */
 void handleState()
 {
     switch (currentState) {
@@ -155,9 +150,7 @@ void handleState()
 
 void setup()
 {
-    Serial.begin(38400);
-
-    // Button
+    // Setup the button with an internal pullup resistor.
     pinMode(BUTTON_PIN, INPUT_PULLUP);
 
     // LEDs
@@ -170,10 +163,11 @@ void setup()
 
 void loop()
 {
-    int currentMillis = millis();
-
+    // Check the button to see if there's a state change that needs doing.
     handleButton();
 
+    // Handle the state every INTERVAL_MS
+    int currentMillis = millis();
     if (currentMillis - previousMillis > INTERVAL_MS) {
         handleState();
         previousMillis = currentMillis;
